@@ -43,7 +43,14 @@ public class Main {
                    String content = path.substring(6);
 
                    // 2. Build the precise multi-line HTTP response
-                   
+                   String response = "HTTP/1.1 200 OK\r\n" +
+                                     "Content-Type: text/plain\r\n" +
+                                     "Content-Length: " + content.length() + "\r\n" +
+                                     "\r\n" + // Double CRLF separating headers fro mbody
+                                     content;
+
+                   // 3. Write out the entire response string as raw bytes
+                   clientSocket.getOutputStream().write(response.getBytes());
                }
                else {
                    clientSocket.getOutputStream().write("HTTP/1.1 404 Not Found\r\n\r\n".getBytes());
