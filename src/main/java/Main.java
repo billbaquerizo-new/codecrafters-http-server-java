@@ -46,10 +46,19 @@ public class Main {
                    String response = "HTTP/1.1 200 OK\r\n" +
                                      "Content-Type: text/plain\r\n" +
                                      "Content-Length: " + content.length() + "\r\n" +
-                                     "\r\n" + // Double CRLF separating headers fro mbody
+                                     "\r\n" + // Double CRLF separating headers from body
                                      content;
 
                    // 3. Write out the entire response string as raw bytes
+                   clientSocket.getOutputStream().write(response.getBytes());
+               } else if (path.startsWith("/user-agent/")) {
+                   String content = path.substring(12);
+
+                   String response = "HTTP/1.1 200 OK\r\n" +
+                           "Content-Type: text/plain\r\n" +
+                           "Content-Length: " + content.length() + "\r\n" +
+                           "\r\n" + // Double CRLF separating headers from body
+                           content;
                    clientSocket.getOutputStream().write(response.getBytes());
                }
                else {
