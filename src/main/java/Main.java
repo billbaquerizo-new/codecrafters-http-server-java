@@ -38,7 +38,14 @@ public class Main {
                // 3. Route based on the path and send the response
                if (path.equals("/")) {
                    clientSocket.getOutputStream().write("HTTP/1.1 200 OK\r\n\r\n".getBytes());
-               } else {
+               } else if (path.startsWith("/echo/")) {
+                   // 1. Extract the string following "/echo/"
+                   String content = path.substring(6);
+
+                   // 2. Build the precise multi-line HTTP response
+                   
+               }
+               else {
                    clientSocket.getOutputStream().write("HTTP/1.1 404 Not Found\r\n\r\n".getBytes());
                }
            }
