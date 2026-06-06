@@ -35,7 +35,19 @@ public class Main {
 
                System.out.println("Requested path: " + path);
 
-               // 3. Route based on the path and send the response
+               // 1. Read all headers from the stream so we can inspect them
+               String userAgentValue = "";
+               String headerLine;
+
+               // An HTTP header block ends with an empty line
+               while ((headerLine = reader.readLine()) != null && !headerLine.isEmpty()) {
+                   if (headerLine.startsWith("User-Agent: ")) {
+                       // Extract everything after "User-Agent: " (which is 12 characters long)
+                       userAgentValue = headerLine.substring(12);
+                   }
+               }
+
+               // 2. Route based on the path and send the response
                if (path.equals("/")) {
                    clientSocket.getOutputStream().write("HTTP/1.1 200 OK\r\n\r\n".getBytes());
                } else if (path.startsWith("/echo/")) {
@@ -51,14 +63,12 @@ public class Main {
 
                    // 3. Write out the entire response string as raw bytes
                    clientSocket.getOutputStream().write(response.getBytes());
-               } else if (path.startsWith("/user-agent/")) {
-                   String content = path.substring(12);
-
+               } else if (path.startsWith("/user-agent")) {
                    String response = "HTTP/1.1 200 OK\r\n" +
                            "Content-Type: text/plain\r\n" +
-                           "Content-Length: " + content.length() + "\r\n" +
+                           "Content-Length: " + userAgentValue.length() + "\r\n" +
                            "\r\n" + // Double CRLF separating headers from body
-                           content;
+                           userAgentValue;
                    clientSocket.getOutputStream().write(response.getBytes());
                }
                else {
