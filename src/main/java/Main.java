@@ -11,10 +11,10 @@ public class Main {
 
         //1. Parse command-line arguments to find the directory flag
         String directory = "";
-        System.out.println(args[0]);
-        System.out.println(args[1]);
-        System.out.println(args[2]);
-        System.out.println(args[3]);
+//        System.out.println(args[0]);
+//        System.out.println(args[1]);
+//        System.out.println(args[2]);
+//        System.out.println(args[3]);
 
         try (ServerSocket serverSocket = new ServerSocket(4221)) {
 
