@@ -3,6 +3,8 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.io.BufferedReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class Main {
     public static void main(String[] args) {
@@ -11,10 +13,16 @@ public class Main {
 
         //1. Parse command-line arguments to find the directory flag
         String directory = "";
-//        System.out.println(args[0]);
-//        System.out.println(args[1]);
-//        System.out.println(args[2]);
-//        System.out.println(args[3]);
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].equals("--directory") && i + 1 < args.length) {
+                directory = args[i + 1];
+                break;
+            }
+        }
+        System.out.println("Configured root directory: " + directory);
+
+        // We make a final copy of the directory variable so the threads can access it safely
+        final String finalDirectory = directory;
 
         try (ServerSocket serverSocket = new ServerSocket(4221)) {
 
@@ -76,7 +84,33 @@ public class Main {
                                         "\r\n" + // Double CRLF separating headers from body
                                         userAgentValue;
                                 clientSocket.getOutputStream().write(response.getBytes());
-                            } else {
+                            }
+                            else if (path.startsWith("/files/")) {
+                                String filename = path.substring(7);
+                                Path filePath = Path.of(finalDirectory, filename);
+
+                                if (Files.exists(filePath)) {
+                                    // Read file content as raw bytes
+                                    byte[] fileBytes = Files.readAllBytes(filePath);
+
+                                    // Build response headers
+                                    String header = "HTTP/1.1 200 OK\r\n" +
+                                            "Content-Type: application/octet-stream\r\n" +
+                                            "Content-Length: " + fileBytes.length + "\r\n" +
+                                            "\r\n";
+
+                                    // Write headers first, then immediately write raw file data bytes
+                                    clientSocket.getOutputStream().write(header.getBytes());
+                                    clientSocket.getOutputStream().write(fileBytes);
+                                } else {
+                                    // File wasn't found in the directory
+                                    clientSocket.getOutputStream().write("HTTP/1.1 404 Not Found\r\n\r\n".getBytes());
+                                }
+
+
+
+                            }
+                            else {
                                 clientSocket.getOutputStream().write("HTTP/1.1 404 Not Found\r\n\r\n".getBytes());
                             }
                         }
