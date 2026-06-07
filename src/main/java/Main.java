@@ -9,7 +9,11 @@ public class Main {
         // You can use print statements as follows for debugging, they'll be visible when running tests.
         System.out.println("Logs from your program will appear here!");
 
-        // TODO: Uncomment the code below to pass the first stage
+        //1. Parse command-line arguments to find the directory flag
+        String directory = "";
+        System.out.println(args[0]);
+        System.out.println(args[1]);
+        System.out.println(args[2]);
 
         try (ServerSocket serverSocket = new ServerSocket(4221)) {
 
