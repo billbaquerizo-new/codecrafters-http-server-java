@@ -45,12 +45,14 @@ public class Main {
                         if (requestLine != null && !requestLine.isEmpty()) {
                             // 2. Split the line by spaces: ["GET", "/path", "HTTP/1.1"]
                             String[] parts = requestLine.split(" ");
+                            String method = parts[0]; // Captures "GET" or "POST"
                             String path = parts[1]; // The second element is the target URL path
 
                             System.out.println("Requested path: " + path);
 
                             // 1. Read all headers from the stream so we can inspect them
                             String userAgentValue = "";
+                            int contentLength = 0;  // Will store the payload size for POST request
                             String headerLine;
 
                             // An HTTP header block ends with an empty line
@@ -58,6 +60,10 @@ public class Main {
                                 if (headerLine.startsWith("User-Agent: ")) {
                                     // Extract everything after "User-Agent: " (which is 12 characters long)
                                     userAgentValue = headerLine.substring(12);
+                                }
+                                // Safely extract the content length value
+                                if (headerLine.toLowerCase().startsWith("content-length: ")) {
+                                    contentLength = Integer.parseInt(headerLine.substring(16).trim());
                                 }
                             }
 
@@ -89,26 +95,39 @@ public class Main {
                                 String filename = path.substring(7);
                                 Path filePath = Path.of(finalDirectory, filename);
 
-                                if (Files.exists(filePath)) {
-                                    // Read file content as raw bytes
-                                    byte[] fileBytes = Files.readAllBytes(filePath);
+                                if (method.equals("GET")) {
+                                    if (Files.exists(filePath)) {
+                                        // Read file content as raw bytes
+                                        byte[] fileBytes = Files.readAllBytes(filePath);
 
-                                    // Build response headers
-                                    String header = "HTTP/1.1 200 OK\r\n" +
-                                            "Content-Type: application/octet-stream\r\n" +
-                                            "Content-Length: " + fileBytes.length + "\r\n" +
-                                            "\r\n";
+                                        // Build response headers
+                                        String header = "HTTP/1.1 200 OK\r\n" +
+                                                "Content-Type: application/octet-stream\r\n" +
+                                                "Content-Length: " + fileBytes.length + "\r\n" +
+                                                "\r\n";
 
-                                    // Write headers first, then immediately write raw file data bytes
-                                    clientSocket.getOutputStream().write(header.getBytes());
-                                    clientSocket.getOutputStream().write(fileBytes);
-                                } else {
-                                    // File wasn't found in the directory
-                                    clientSocket.getOutputStream().write("HTTP/1.1 404 Not Found\r\n\r\n".getBytes());
+                                        // Write headers first, then immediately write raw file data bytes
+                                        clientSocket.getOutputStream().write(header.getBytes());
+                                        clientSocket.getOutputStream().write(fileBytes);
+                                    } else {
+                                        // File wasn't found in the directory
+                                        clientSocket.getOutputStream().write("HTTP/1.1 404 Not Found\r\n\r\n".getBytes());
+                                    }
                                 }
+                                else if (method.equals("POST")) {
+                                    // 1. Initialize a buffer matching the dynamic Content-Length size
+                                    char[] bodyBuffer = new char[contentLength];
 
+                                    // 2. Read exactly that amount of data from the stream
+                                    reader.read(bodyBuffer, 0, contentLength);
+                                    String requestBody = new String(bodyBuffer);
 
+                                    // 3. Write the payload string to disk
+                                    Files.writeString(filePath, requestBody);
 
+                                    // 4. Return the official 201 Created confirmation status
+                                    clientSocket.getOutputStream().write("HTTP/1.1 201 Created\r\n\r\n".getBytes());
+                                }
                             }
                             else {
                                 clientSocket.getOutputStream().write("HTTP/1.1 404 Not Found\r\n\r\n".getBytes());
