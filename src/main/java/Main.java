@@ -1,3 +1,4 @@
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
@@ -5,6 +6,7 @@ import java.net.Socket;
 import java.io.BufferedReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.zip.GZIPOutputStream;
 
 public class Main {
     public static void main(String[] args) {
@@ -78,22 +80,30 @@ public class Main {
                             } else if (path.startsWith("/echo/")) {
                                 String content = path.substring(6);
 
-                                // 1. Start building our baseline headers
+                                // 1. Check content negotiation for gzip support
+                                boolean useGzip = acceptEncodingValue.contains("gzip");
+
+                                byte[] bodyBytes;
                                 String responseHeader = "HTTP/1.1 200 OK\r\n" +
                                         "Content-Type: text/plain\r\n";
 
-                                // 2. Content Negotiation: Check if the client supports gzip
-                                // Using .contains() handles cases where the client sends multiple encodings (e.g., "deflate, gzip")
-                                if (acceptEncodingValue.contains("gzip")) {
+                                if (useGzip) {
+                                    // Compress the payload text using our new GZIP stream helper
+                                    bodyBytes = compressGzip(content);
                                     responseHeader += "Content-Encoding: gzip\r\n";
+                                } else {
+                                    // Fall back to standard uncompressed plain-text raw bytes
+                                    bodyBytes = content.getBytes("UTF-8");
                                 }
 
-                                // 3. Append the Content-Length and the closing header spacer
-                                responseHeader += "Content-Length: " + content.length() + "\r\n\r\n";
+                                // 2. Set Content-Length strictly to the size of the final byte array payload
+                                responseHeader += "Content-Length: " + bodyBytes.length + "\r\n\r\n";
 
-                                // 4. Combine headers and body, then write to the stream
-                                String fullResponse = responseHeader + content;
-                                clientSocket.getOutputStream().write(fullResponse.getBytes());
+                                // 3. Write out the textual headers first
+                                clientSocket.getOutputStream().write(responseHeader.getBytes("UTF-8"));
+
+                                // 4. Immediately stream out the raw binary payload data right behind it
+                                clientSocket.getOutputStream().write(bodyBytes);
                             } else if (path.startsWith("/user-agent")) {
                                 String response = "HTTP/1.1 200 OK\r\n" +
                                         "Content-Type: text/plain\r\n" +
@@ -155,6 +165,16 @@ public class Main {
         } catch(IOException e) {
             System.out.println("IOException: " + e.getMessage());
         }
+    }
+
+    private static byte[] compressGzip(String data) throws IOException {
+        ByteArrayOutputStream obj = new ByteArrayOutputStream();
+        // Wrap a GZIP filter stream around our dynamic memory buffer
+        try (GZIPOutputStream gzip = new GZIPOutputStream(obj)) {
+            gzip.write(data.getBytes("UTF-8"));
+            gzip.flush();
+        } // Closing the GZIPOutputStream forces it to finish writing its header/footer bytes
+        return obj.toByteArray();
     }
 }
 
