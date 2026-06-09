@@ -52,6 +52,7 @@ public class Main {
 
                             // 1. Read all headers from the stream so we can inspect them
                             String userAgentValue = "";
+                            String acceptEncodingValue = "";
                             int contentLength = 0;  // Will store the payload size for POST request
                             String headerLine;
 
@@ -65,24 +66,34 @@ public class Main {
                                 if (headerLine.toLowerCase().startsWith("content-length: ")) {
                                     contentLength = Integer.parseInt(headerLine.substring(16).trim());
                                 }
+
+                                if (headerLine.startsWith("Accept-Encoding: ")) {
+                                    acceptEncodingValue = headerLine.substring(17).trim();
+                                }
                             }
 
                             // 2. Route based on the path and send the response
                             if (path.equals("/")) {
                                 clientSocket.getOutputStream().write("HTTP/1.1 200 OK\r\n\r\n".getBytes());
                             } else if (path.startsWith("/echo/")) {
-                                // 1. Extract the string following "/echo/"
                                 String content = path.substring(6);
 
-                                // 2. Build the precise multi-line HTTP response
-                                String response = "HTTP/1.1 200 OK\r\n" +
-                                        "Content-Type: text/plain\r\n" +
-                                        "Content-Length: " + content.length() + "\r\n" +
-                                        "\r\n" + // Double CRLF separating headers from body
-                                        content;
+                                // 1. Start building our baseline headers
+                                String responseHeader = "HTTP/1.1 200 OK\r\n" +
+                                        "Content-Type: text/plain\r\n";
 
-                                // 3. Write out the entire response string as raw bytes
-                                clientSocket.getOutputStream().write(response.getBytes());
+                                // 2. Content Negotiation: Check if the client supports gzip
+                                // Using .contains() handles cases where the client sends multiple encodings (e.g., "deflate, gzip")
+                                if (acceptEncodingValue.contains("gzip")) {
+                                    responseHeader += "Content-Encoding: gzip\r\n";
+                                }
+
+                                // 3. Append the Content-Length and the closing header spacer
+                                responseHeader += "Content-Length: " + content.length() + "\r\n\r\n";
+
+                                // 4. Combine headers and body, then write to the stream
+                                String fullResponse = responseHeader + content;
+                                clientSocket.getOutputStream().write(fullResponse.getBytes());
                             } else if (path.startsWith("/user-agent")) {
                                 String response = "HTTP/1.1 200 OK\r\n" +
                                         "Content-Type: text/plain\r\n" +
